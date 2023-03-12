@@ -1,113 +1,34 @@
-
-// const { clientId, guildId, token, publicKey } = require('./config.json');
-require('dotenv').config()
-const APPLICATION_ID = process.env.APPLICATION_ID 
-const TOKEN = process.env.TOKEN 
-const PUBLIC_KEY = process.env.PUBLIC_KEY || 'not set'
-const GUILD_ID = process.env.GUILD_ID 
+npm install discord.js
+npm install mc-ping-updated
 
 
-const axios = require('axios')
-const express = require('express');
-const { InteractionType, InteractionResponseType, verifyKeyMiddleware } = require('discord-interactions');
 
+const Discord = require('discord.js');
+const mc = require('mc-ping-updated');
 
-const app = express();
-// app.use(bodyParser.json());
+const client = new Discord.Client();
+const prefix = '!'; // Replace with your desired prefix
+const serverIp = 'Glorified.us'; // Replace with your Minecraft server IP
 
-const discord_api = axios.create({
-  baseURL: 'https://discord.com/api/',
-  timeout: 3000,
-  headers: {
-	"Access-Control-Allow-Origin": "*",
-	"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE",
-	"Access-Control-Allow-Headers": "Authorization",
-	"Authorization": `Bot ${TOKEN}`
-  }
+client.on('ready', () => {
+  console.log(`Logged in as ${client.user.tag}`);
+  client.user.setActivity('Minecraft server status', { type: 'WATCHING' });
+  updateStatus();
+  setInterval(updateStatus, 300000); // Update every 5 minutes
 });
 
-
-
-
-app.post('/interactions', verifyKeyMiddleware(PUBLIC_KEY), async (req, res) => {
-  const interaction = req.body;
-
-  if (interaction.type === InteractionType.APPLICATION_COMMAND) {
-    console.log(interaction.data.name)
-    if(interaction.data.name == 'yo'){
-      return res.send({
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          content: `Yo ${interaction.member.user.username}!`,
-        },
-      });
+function updateStatus() {
+  mc(serverIp, 25565, (err, res) => {
+    if (err) {
+      console.error(err);
+      client.user.setActivity('Error fetching server status');
+    } else {
+      const players = res.players.online;
+      const maxPlayers = res.players.max;
+      const status = `Players: ${players}/${maxPlayers}`;
+      client.user.setActivity(status, { type: 'PLAYING' });
     }
+  });
+}
 
-    if(interaction.data.name == 'dm'){
-      // https://discord.com/developers/docs/resources/user#create-dm
-      let c = (await discord_api.post(`/users/@me/channels`,{
-        recipient_id: interaction.member.user.id
-      })).data
-      try{
-        // https://discord.com/developers/docs/resources/channel#create-message
-        let res = await discord_api.post(`/channels/${c.id}/messages`,{
-          content:'Yo! I got your slash command. I am not able to respond to DMs just slash commands.',
-        })
-        console.log(res.data)
-      }catch(e){
-        console.log(e)
-      }
-
-      return res.send({
-        // https://discord.com/developers/docs/interactions/receiving-and-responding#responding-to-an-interaction
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data:{
-          content:'👍'
-        }
-      });
-    }
-  }
-
-});
-
-
-
-app.get('/register_commands', async (req,res) =>{
-  let slash_commands = [
-    {
-      "name": "yo",
-      "description": "replies with Yo!",
-      "options": []
-    },
-    {
-      "name": "dm",
-      "description": "sends user a DM",
-      "options": []
-    }
-  ]
-  try
-  {
-    // api docs - https://discord.com/developers/docs/interactions/application-commands#create-global-application-command
-    let discord_response = await discord_api.put(
-      `/applications/${APPLICATION_ID}/guilds/${GUILD_ID}/commands`,
-      slash_commands
-    )
-    console.log(discord_response.data)
-    return res.send('commands have been registered')
-  }catch(e){
-    console.error(e.code)
-    console.error(e.response?.data)
-    return res.send(`${e.code} error from discord`)
-  }
-})
-
-
-app.get('/', async (req,res) =>{
-  return res.send('Follow documentation ')
-})
-
-
-app.listen(8999, () => {
-
-})
-
+client.login('your-bot-token');

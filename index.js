@@ -1,8 +1,3 @@
-npm install discord.js
-npm install mc-ping-updated
-
-
-
 const Discord = require('discord.js');
 const mc = require('mc-ping-updated');
 
